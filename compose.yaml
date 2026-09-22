@@ -1,0 +1,158 @@
+services:
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+
+    ports:
+      - "8080:80"
+      - "8443:443"
+
+    networks:
+      - frontend
+
+    volumes:
+      - /opt/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /opt/nginx/tls:/etc/nginx/tls:ro
+
+    depends_on:
+      app1:
+        condition: service_healthy
+      app2:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "--no-check-certificate", "https://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app1:
+    image: app-v1:v2
+    restart: unless-stopped
+
+    expose:
+      - "8001"
+
+    networks:
+      - frontend
+      - backend
+
+    environment:
+      APP_VERSION: "v2"
+
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  app2:
+    image: app-v2:v2
+    restart: unless-stopped
+
+    expose:
+      - "8002"
+
+    networks:
+      - frontend
+      - backend
+
+    environment:
+      APP_VERSION: "v2"
+
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+
+    networks:
+      - backend
+      - database
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+networks:
+  frontend:
+    name: app-frontend
+    driver: bridge
+
+  backend:
+    name: app-backend
+    driver: bridge
+
+  database:
+    name: app-database
+    driver: bridge
+
+
+volumes:
+  postgres-data:
+    name: postgres-data
+    external: true
