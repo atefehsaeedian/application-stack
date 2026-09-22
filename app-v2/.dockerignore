@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.git/
+.gitignore
+.env
+.env.*
+docker-compose.yml
+README*
+*.swp
+*.tmp
