@@ -8,7 +8,7 @@ COPY app.py .
 
 USER appuser
 
-ENV APP_VERSION=2
+ENV APP_VERSION=v2
 
 EXPOSE 8002
 
