@@ -6,10 +6,39 @@ import socket
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.request import urlopen
 
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+
 
 VERSION = os.getenv("APP_VERSION", "v1")
 PORT = 8001
 DEPENDENCY_URL = "http://127.0.0.1:9000"
+
+
+# Application metrics
+total_requests = Counter(
+    "total_requests",
+    "Total number of HTTP requests"
+)
+
+http_2xx = Counter(
+    "http_2xx",
+    "Total number of successful HTTP responses"
+)
+
+http_4xx = Counter(
+    "http_4xx",
+    "Total number of client error HTTP responses"
+)
+
+http_5xx = Counter(
+    "http_5xx",
+    "Total number of server error HTTP responses"
+)
+
+request_duration = Histogram(
+    "request_duration",
+    "HTTP request duration in seconds"
+)
 
 
 def application_timeout_handler(signum, frame):
@@ -28,7 +57,38 @@ class Handler(BaseHTTPRequestHandler):
 
         self.wfile.write(body)
 
+        # Count response by HTTP status class
+        if 200 <= status_code < 300:
+            http_2xx.inc()
+        elif 400 <= status_code < 500:
+            http_4xx.inc()
+        elif 500 <= status_code < 600:
+            http_5xx.inc()
+
+        # Record request duration
+        duration = time.perf_counter() - self.request_start_time
+        request_duration.observe(duration)
+
     def do_GET(self):
+
+        # Prometheus scrapes this endpoint.
+        # We don't count the monitoring request itself.
+        if self.path == "/metrics":
+            output = generate_latest()
+
+            self.send_response(200)
+            self.send_header("Content-Type", CONTENT_TYPE_LATEST)
+            self.send_header("Content-Length", str(len(output)))
+            self.end_headers()
+
+            self.wfile.write(output)
+            return
+
+        # Start measuring this application request
+        self.request_start_time = time.perf_counter()
+
+        # Count total application requests
+        total_requests.inc()
 
         if self.path == "/":
 

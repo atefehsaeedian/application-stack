@@ -41,6 +41,8 @@ services:
     expose:
       - "8001"
 
+    ports:
+      - "18081:8001"
     networks:
       - frontend
       - backend
@@ -74,6 +76,9 @@ services:
 
     expose:
       - "8002"
+
+    ports:
+      - "18082:8002"
 
     networks:
       - frontend
