@@ -3,6 +3,7 @@ import signal
 import time
 import json
 import socket
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.request import urlopen
 
@@ -12,6 +13,18 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 VERSION = os.getenv("APP_VERSION", "v2")
 PORT = 8002
 DEPENDENCY_URL = "http://127.0.0.1:9000"
+
+
+def log_message(level, request_id, message):
+    print(
+        json.dumps({
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "level": level,
+            "request_id": request_id,
+            "message": message
+        }),
+        flush=True
+    )
 
 
 total_requests = Counter(
@@ -68,7 +81,15 @@ class Handler(BaseHTTPRequestHandler):
         duration = time.perf_counter() - self.request_start_time
         request_duration.observe(duration)
 
+        log_message(
+            "INFO" if status_code < 500 else "ERROR",
+            self.request_id,
+            f"{self.command} {self.path} -> {status_code}"
+        )
+
     def do_GET(self):
+
+        self.request_id = self.headers.get("X-Request-ID") or str(uuid.uuid4())
 
         if self.path == "/metrics":
 
