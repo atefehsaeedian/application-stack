@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 VERSION="${1:-}"
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 LOG_DIR="$HOME/.local/state/app-deploy"
 LOG_FILE="$LOG_DIR/deploy.log"
@@ -11,6 +11,7 @@ LOG_FILE="$LOG_DIR/deploy.log"
 APP1_CONTAINER="application-stack-app1-1"
 APP2_CONTAINER="application-stack-app2-1"
 NGINX_CONTAINER="application-stack-nginx-1"
+COMPOSE_PROJECT="application-stack"
 
 APP1_IMAGE="app-v1:${VERSION}"
 APP2_IMAGE="app-v2:${VERSION}"
@@ -89,7 +90,8 @@ rollback() {
         APP_VERSION="$CURRENT_APP_VERSION" \
         docker compose \
         --env-file "$REPO_DIR/.env" \
-        -f "$REPO_DIR/compose.yaml" \
+        -p "$COMPOSE_PROJECT" \
+        -f "$REPO_DIR/docker/compose.yaml" \
         up -d app1 app2
 
     sudo docker restart "$NGINX_CONTAINER"
@@ -102,11 +104,13 @@ log "Building $APP1_IMAGE"
 
 sudo docker build \
     -t "$APP1_IMAGE" \
+    -f "$TMP_DIR/docker/app-v1/Dockerfile" \
     "$TMP_DIR/app-v1"
 
 log "Building $APP2_IMAGE"
 
 sudo docker build \
+    -f "$TMP_DIR/docker/app-v2/Dockerfile" \
     -t "$APP2_IMAGE" \
     "$TMP_DIR/app-v2"
 
@@ -118,8 +122,9 @@ if ! sudo env \
     APP2_IMAGE="$APP2_IMAGE" \
     APP_VERSION="$VERSION" \
     docker compose \
+    -p "$COMPOSE_PROJECT" \
     --env-file "$REPO_DIR/.env" \
-    -f "$REPO_DIR/compose.yaml" \
+    -f "$REPO_DIR/docker/compose.yaml" \
     up -d app1 app2
 then
     rollback
