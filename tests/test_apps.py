@@ -11,7 +11,7 @@ class ApplicationTest(unittest.TestCase):
 
     def run_app_test(self, app_dir, port, expected_version):
         env = os.environ.copy()
-        env["APP_VERSION"] = expected_version
+        env["APP_VERSION"] = "v1" if app_dir == "app-v1" else "v2"
 
         process = subprocess.Popen(
             [sys.executable, "app.py"],
@@ -60,7 +60,7 @@ class ApplicationTest(unittest.TestCase):
         self.run_app_test(
             "app-v1",
             8001,
-            "v1",
+            "WRONG-VERSION",
         )
 
     def test_app_v2(self):
