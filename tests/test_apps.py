@@ -19,7 +19,6 @@ class ApplicationTest(unittest.TestCase):
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            text=True,
         )
 
         try:
@@ -60,7 +59,7 @@ class ApplicationTest(unittest.TestCase):
         self.run_app_test(
             "app-v1",
             8001,
-            "WRONG-VERSION",
+            "v1",
         )
 
     def test_app_v2(self):
